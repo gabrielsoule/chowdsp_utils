@@ -94,6 +94,10 @@ public:
     /** Returns the gain of the filter. */
     [[nodiscard]] SampleType getGain() const noexcept { return gain; }
 
+    SampleType getPhaseForFrequency (SampleType frequency) const noexcept;
+
+    SampleType getMultiModeMaxGain() const noexcept;
+
     /** Initialises the filter. */
     void prepare (const juce::dsp::ProcessSpec& spec);
 
@@ -255,7 +259,6 @@ public:
     using State = std::conditional_t<maxChannelCount == dynamicChannelCount, std::vector<SampleType>, std::array<SampleType, maxChannelCount>>;
     State ic1eq {}, ic2eq {}; // state variables
 
-private:
     SampleType cutoffFrequency, resonance, gain; // parameters
     SampleType g0, k0, A, sqrtA; // parameter intermediate values
     SampleType a1, a2, a3, ak, k0A, Asq; // coefficients
@@ -263,6 +266,9 @@ private:
     NumericType lowpassMult { 0 }, bandpassMult { 0 }, highpassMult { 0 };
 
     double sampleRate = 44100.0;
+
+    SampleType SQRT2 = static_cast<SampleType>(std::sqrt (2.0));
+    SampleType ONE_OVER_SQRT2 = static_cast<SampleType>(1.0 / std::sqrt (2.0));
 
     template <typename>
     friend class ARPFilter;

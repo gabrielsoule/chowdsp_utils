@@ -76,12 +76,66 @@ std::enable_if_t<M == StateVariableFilterType::MultiMode, void>
     highpassMult = (NumericType) 2 * juce::jmax ((NumericType) 0.5, mode) - (NumericType) 1;
 
     // use sin3db power law for mixing
-    lowpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * lowpassMult);
-    bandpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * bandpassMult);
-    highpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * highpassMult);
+    // lowpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * lowpassMult);
+    // bandpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * bandpassMult);
+    // highpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * highpassMult);
 
     // the BPF is a little bit quieter by design, so let's compensate here for a smooth transition
-    bandpassMult *= juce::MathConstants<NumericType>::sqrt2;
+    // bandpassMult *= juce::MathConstants<NumericType>::sqrt2;
+}
+
+template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount>
+SampleType StateVariableFilter<SampleType, type, maxChannelCount>::getPhaseForFrequency (SampleType frequency) const noexcept
+{
+    auto z = std::exp(juce::dsp::Complex<double>(0.0, -2.0 * juce::MathConstants<double>::pi) * frequency / sampleRate);
+    jassertfalse;
+    return static_cast<SampleType> (-1);
+}
+
+template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount>
+SampleType StateVariableFilter<SampleType, type, maxChannelCount>::getMultiModeMaxGain () const noexcept
+{
+    if(resonance < ONE_OVER_SQRT2)
+    {
+        return 1;
+    }
+
+    if(lowpassMult == static_cast<NumericType>(1))
+    {
+        CHOWDSP_USING_XSIMD_STD (sqrt);
+        auto k2 = k0 * k0;
+        return 2.0 / (k2 * sqrt(4.0 / k2 - 1.0));
+    }
+    else if (lowpassMult > static_cast<NumericType>(0))
+    {
+        auto Q2 = resonance * resonance;
+        auto Q4 = Q2 * Q2;
+        auto lp2 = lowpassMult * lowpassMult;
+        auto bp2 = bandpassMult * bandpassMult;
+        auto lp4 = lp2 * lp2;
+        auto bp4 = bp2 * bp2;
+        CHOWDSP_USING_XSIMD_STD (sqrt);
+        return bp2 * sqrt(-1 / (2 * Q4 * lp2 + (2 * Q2 - 1) * bp2 - 2 * sqrt(Q4 * lp4 + (2 * Q2 - 1) * lp2 * bp2 + bp4) * Q2));
+
+    } else if(bandpassMult == static_cast<NumericType>(1))
+    {
+        return resonance;
+    } else if (bandpassMult > static_cast<NumericType>(0))
+    {
+        jassertfalse;
+    } else if(highpassMult == static_cast<NumericType>(1))
+    {
+        jassertfalse;
+    } else if (highpassMult < static_cast<NumericType>(1))
+    {
+        jassertfalse;
+    } else if (highpassMult == static_cast<NumericType>(1))
+    {
+        jassertfalse;
+    } else
+    {
+        jassertfalse;
+    }
 }
 
 template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount>
