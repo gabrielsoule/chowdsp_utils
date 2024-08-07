@@ -22,12 +22,13 @@ enum class StateVariableFilterType
  *
  * Reference: https://cytomic.com/files/dsp/SvfLinearTrapAllOutputs.pdf
  */
-template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount = defaultChannelCount>
+template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount = defaultChannelCount, bool unityGain = false>
 class StateVariableFilter
 {
 public:
     static constexpr int Order = 2;
     static constexpr auto Type = type;
+    static constexpr float InverseRootTwo = 0.70710678118654752440f;
 
     using FilterType = StateVariableFilterType;
     using NumericType = SampleTypeHelpers::NumericType<SampleType>;
@@ -78,6 +79,9 @@ public:
     template <StateVariableFilterType M = type>
     std::enable_if_t<M == StateVariableFilterType::MultiMode, void> setMode (NumericType mode);
 
+    template <StateVariableFilterType M = type>
+    std::enable_if_t<M == StateVariableFilterType::MultiMode, void> updateParameters (SampleType newFrequency, SampleType newResonance, NumericType newMode);
+
     /**
      * Updates the filter coefficients.
      *
@@ -93,6 +97,72 @@ public:
 
     /** Returns the gain of the filter. */
     [[nodiscard]] SampleType getGain() const noexcept { return gain; }
+
+    /** Returns the peak gain of the filter, i.e. the maximum value of the amplitude response curve. */
+    template <bool U = unityGain>
+    [[nodiscard]] std::enable_if_t<U, SampleType> getPeakGain() const noexcept
+    {
+        if constexpr (type == FilterType::Lowpass || type == FilterType::Highpass)
+        {
+            if(resonance > InverseRootTwo)
+            {
+                CHOWDSP_USING_XSIMD_STD (sqrt);
+                auto k2 = k0 * k0;
+                return 2.0 / (k2 * sqrt(4.0 / k2 - 1.0));
+            }
+            else
+            {
+                return 1;
+            }
+        }
+        else if constexpr (type == FilterType::Bandpass)
+        {
+            return resonance;
+        }
+        else if constexpr(type == FilterType::MultiMode)
+        {
+            if(lowpassMult == 1 || highpassMult == 1)
+            {
+                //same as pure LPF/HPF
+                if(resonance > InverseRootTwo)
+                {
+                    CHOWDSP_USING_XSIMD_STD (sqrt);
+                    auto k2 = k0 * k0;
+                    return 2.0 / (k2 * sqrt(4.0 / k2 - 1.0));
+                }
+                else
+                {
+                    return 1;
+                }
+            }
+            if(bandpassMult == 1)
+            {
+                return resonance;
+            }
+            else //the fun part
+            {
+                //the computation is symmetric w.r.t lowpass and highpass amounts..
+                const auto a = (lowpassMult == 0 ? highpassMult : lowpassMult);
+                const auto b = bandpassMult;
+
+                jassert(a + b == static_cast<NumericType>(static_cast<SampleType>(1)));
+
+                auto Q2 = resonance * resonance;
+                auto Q4 = Q2 * Q2;
+                auto a2 = a * a;
+                auto b2 = b * b;
+                auto a4 = a2 * a2;
+                auto b4 = b2 * b2;
+                CHOWDSP_USING_XSIMD_STD (sqrt);
+                return b2 * sqrt(-1 / (2 * Q4 * a2 + (2 * Q2 - 1) * b2 - 2 * sqrt(Q4 * a4 + (2 * Q2 - 1) * a2 * b2 + b4) * Q2));
+            }
+        } else
+        {
+            //not yet implemented
+            jassertfalse;
+            return 1;
+        }
+    }
 
     /** Initialises the filter. */
     void prepare (const juce::dsp::ProcessSpec& spec);
@@ -225,7 +295,7 @@ public:
         else if constexpr (type == FilterType::HighShelf)
             return Asq * v0 + k0A * v1 + v2; // Asq * high + k0 * A * band + low
         else if constexpr (type == FilterType::MultiMode)
-            return lowpassMult * v2 + bandpassMult * v1 + highpassMult * v0;
+            return (lowpassMult * v2 + bandpassMult * v1 + highpassMult * v0) * oneOverPeakGain;
         else if constexpr (type == FilterType::Crossover)
         {
             return std::make_pair (v2, -v0);
@@ -261,6 +331,8 @@ private:
     SampleType a1, a2, a3, ak, k0A, Asq; // coefficients
 
     NumericType lowpassMult { 0 }, bandpassMult { 0 }, highpassMult { 0 };
+    NumericType oneOverPeakGain = 1;
+    NumericType mode;
 
     double sampleRate = 44100.0;
 
@@ -303,8 +375,8 @@ template <typename SampleType = float, size_t maxChannelCount = defaultChannelCo
 using SVFHighShelf = StateVariableFilter<SampleType, StateVariableFilterType::HighShelf, maxChannelCount>;
 
 /** Convenient alias for an SVF multi-mode filter. */
-template <typename SampleType = float, size_t maxChannelCount = defaultChannelCount>
-using SVFMultiMode = StateVariableFilter<SampleType, StateVariableFilterType::MultiMode, maxChannelCount>;
+template <typename SampleType = float, size_t maxChannelCount = defaultChannelCount, bool unityGain = false>
+using SVFMultiMode = StateVariableFilter<SampleType, StateVariableFilterType::MultiMode, maxChannelCount, unityGain>;
 } // namespace chowdsp
 
 #include "chowdsp_StateVariableFilter.cpp"
