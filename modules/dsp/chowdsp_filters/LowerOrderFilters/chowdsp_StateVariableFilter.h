@@ -98,10 +98,15 @@ public:
     /** Returns the gain of the filter. */
     [[nodiscard]] SampleType getGain() const noexcept { return gain; }
 
-    /** Returns the peak gain of the filter, i.e. the maximum value of the amplitude response curve. */
+    /** Returns the peak gain of the filter, i.e. the maximum value of the amplitude response curve.
+     * As of writing this function only works when the filter is in unity gain mode; it cannot compensate for the sin3db multi-mode mixing.
+     * If unityGain is set to true, the filter will have a peak gain of 1, but this function
+     * will still return the peak gain of the filter with the given parameters without any normalization.
+     */
     template <bool U = unityGain>
     [[nodiscard]] std::enable_if_t<U, SampleType> getPeakGain() const noexcept
     {
+        jassert (unityGain);
         if constexpr (type == FilterType::Lowpass || type == FilterType::Highpass)
         {
             if(resonance > InverseRootTwo)
@@ -139,26 +144,31 @@ public:
             {
                 return resonance;
             }
-            else //the fun part
+            else if (resonance < InverseRootTwo)
             {
-                //the computation is symmetric w.r.t lowpass and highpass amounts..
-                const auto a = (lowpassMult == 0 ? highpassMult : lowpassMult);
+                return (lowpassMult + highpassMult);
+
+            } else
+            {
+                const auto a = lowpassMult == 0 ? highpassMult : lowpassMult;
                 const auto b = bandpassMult;
 
                 jassert(a + b == static_cast<NumericType>(static_cast<SampleType>(1)));
 
-                auto Q2 = resonance * resonance;
-                auto Q4 = Q2 * Q2;
-                auto a2 = a * a;
-                auto b2 = b * b;
-                auto a4 = a2 * a2;
-                auto b4 = b2 * b2;
+                auto Qsq = resonance * resonance;
+                auto Q4 = Qsq * Qsq;
+                auto asq = a * a;
+                auto bsq = b * b;
+                auto a4 = asq * asq;
+                auto b4 = bsq * bsq;
                 CHOWDSP_USING_XSIMD_STD (sqrt);
-                return b2 * sqrt(-1 / (2 * Q4 * a2 + (2 * Q2 - 1) * b2 - 2 * sqrt(Q4 * a4 + (2 * Q2 - 1) * a2 * b2 + b4) * Q2));
+                // return b2 * sqrt(-1 / (2 * Q4 * a2 + (2 * Q2 - 1) * b2 - 2 * sqrt(Q4 * a4 + (2 * Q2 - 1) * a2 * b2 + b4) * Q2));
+                return bsq * resonance * sqrt(1 / (bsq * (1 - 2 * Qsq) + 2 * resonance * (-asq * resonance + sqrt(-asq * bsq + (asq + bsq) * (asq + bsq) * Qsq))));
             }
+
         } else
         {
-            //not yet implemented
+            //not yet implemented for shelf/peak filters; if you're seeing this, don't create a unity gain filter of this type
             jassertfalse;
             return 1;
         }
