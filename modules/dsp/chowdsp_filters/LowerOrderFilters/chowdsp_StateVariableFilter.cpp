@@ -5,13 +5,13 @@ namespace chowdsp
 template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount, bool unityGain>
 StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::StateVariableFilter()
 {
-    setCutoffFrequency (static_cast<NumericType> (1000.0));
-    setQValue (static_cast<NumericType> (1.0 / juce::MathConstants<double>::sqrt2));
-    setGain (static_cast<NumericType> (1.0));
     if constexpr (type == FilterType::MultiMode)
     {
         setMode(0);
     }
+    setCutoffFrequency (static_cast<NumericType> (1000.0));
+    setQValue (static_cast<NumericType> (1.0 / juce::MathConstants<double>::sqrt2));
+    setGain (static_cast<NumericType> (1.0));
 }
 
 template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount, bool unityGain>
@@ -116,10 +116,6 @@ std::enable_if_t<M == StateVariableFilterType::MultiMode, void>
     }
     if(flag)
     {
-        if constexpr(unityGain)
-        {
-            oneOverPeakGain = 1.0 / getPeakGain();
-        }
         update();
     }
 
@@ -195,5 +191,10 @@ void StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::update()
     a2 = g * a1;
     a3 = g * a2;
     ak = gk * a1;
+
+    if constexpr(unityGain)
+    {
+        oneOverPeakGain = 1.0 / getPeakGain();
+    }
 }
 } // namespace chowdsp
