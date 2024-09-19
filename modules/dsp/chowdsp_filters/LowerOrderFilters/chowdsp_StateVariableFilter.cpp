@@ -80,22 +80,24 @@ std::enable_if_t<M == StateVariableFilterType::MultiMode, void>
     bandpassMult = (NumericType) 1 - std::abs ((NumericType) 2 * (mode - (NumericType) 0.5));
     highpassMult = (NumericType) 2 * juce::jmax ((NumericType) 0.5, mode) - (NumericType) 1;
 
-    if constexpr(!unityGain)
-    {
-        // use sin3db power law for mixing
-        lowpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * lowpassMult);
-        bandpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * bandpassMult);
-        highpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * highpassMult);
+    //TODO restore original functionality
 
-        // the BPF is a little bit quieter by design, so let's compensate here for a smooth transition
-        bandpassMult *= juce::MathConstants<NumericType>::sqrt2;
-    }
+    // if constexpr(!unityGain)
+    // {
+    //     // use sin3db power law for mixing
+    //     lowpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * lowpassMult);
+    //     bandpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * bandpassMult);
+    //     highpassMult = std::sin (juce::MathConstants<NumericType>::halfPi * highpassMult);
+    //
+    //     // the BPF is a little bit quieter by design, so let's compensate here for a smooth transition
+    //     bandpassMult *= juce::MathConstants<NumericType>::sqrt2;
+    // }
 
 }
 
 template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount, bool unityGain>
 template <StateVariableFilterType M>
-std::enable_if_t<M == StateVariableFilterType::MultiMode, void>
+std::enable_if_t<M == StateVariableFilterType::MultiMode, bool>
     StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::updateParameters (SampleType newFrequency, SampleType newResonance, NumericType newMode)
 {
     bool flag = false;
@@ -119,6 +121,7 @@ std::enable_if_t<M == StateVariableFilterType::MultiMode, void>
         update();
     }
 
+    return flag;
 }
 
 template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount, bool unityGain>

@@ -80,7 +80,7 @@ public:
     std::enable_if_t<M == StateVariableFilterType::MultiMode, void> setMode (NumericType mode);
 
     template <StateVariableFilterType M = type>
-    std::enable_if_t<M == StateVariableFilterType::MultiMode, void> updateParameters (SampleType newFrequency, SampleType newResonance, NumericType newMode);
+    std::enable_if_t<M == StateVariableFilterType::MultiMode, bool> updateParameters (SampleType newFrequency, SampleType newResonance, NumericType newMode);
 
     /**
      * Updates the filter coefficients.
@@ -103,10 +103,9 @@ public:
      * If unityGain is set to true, the filter will have a peak gain of 1, but this function
      * will still return the peak gain of the filter with the given parameters without any normalization.
      */
-    template <bool U = unityGain>
-    [[nodiscard]] std::enable_if_t<U, SampleType> getPeakGain() const noexcept
+    [[nodiscard]] SampleType getPeakGain() const noexcept
     {
-        jassert (unityGain);
+        // jassert (unityGain);
         if constexpr (type == FilterType::Lowpass || type == FilterType::Highpass)
         {
             if(resonance > InverseRootTwo)
@@ -126,7 +125,7 @@ public:
         }
         else if constexpr(type == FilterType::MultiMode)
         {
-            if(lowpassMult == 1 || highpassMult == 1)
+            if(lowpassMult >= 0.98 || highpassMult >=0.98)
             {
                 //same as pure LPF/HPF
                 if(resonance > InverseRootTwo)
@@ -150,20 +149,29 @@ public:
 
             } else
             {
-                const auto a = lowpassMult == 0 ? highpassMult : lowpassMult;
-                const auto b = bandpassMult;
+                const double a = static_cast<double>(lowpassMult == 0 ? highpassMult : lowpassMult);
+                const double b = static_cast<double>(bandpassMult);
 
                 jassert(a + b == static_cast<NumericType>(static_cast<SampleType>(1)));
 
-                auto Qsq = resonance * resonance;
-                auto Q4 = Qsq * Qsq;
-                auto asq = a * a;
-                auto bsq = b * b;
-                auto a4 = asq * asq;
-                auto b4 = bsq * bsq;
+                double Q = static_cast<double>(resonance);
+                double Qsq = static_cast<double>(resonance * resonance);
+                double asq = a * a;
+                double bsq = b * b;
+
                 CHOWDSP_USING_XSIMD_STD (sqrt);
-                // return b2 * sqrt(-1 / (2 * Q4 * a2 + (2 * Q2 - 1) * b2 - 2 * sqrt(Q4 * a4 + (2 * Q2 - 1) * a2 * b2 + b4) * Q2));
-                return bsq * resonance * sqrt(1 / (bsq * (1 - 2 * Qsq) + 2 * resonance * (-asq * resonance + sqrt(-asq * bsq + (asq + bsq) * (asq + bsq) * Qsq))));
+                const double epsilon = std::numeric_limits<double>::epsilon();
+
+                const double term1 = std::sqrt(-asq * bsq + (asq + bsq) * (asq + bsq) * Qsq);
+                // const double term2 = std::max(epsilon, bsq * (1 - 2 * Qsq) + 2 * static_cast<double>(resonance) * (-asq * static_cast<double>(resonance) + term1));
+                const double term1a = bsq * (1 - 2 * Qsq);
+                const double term1b = 2 * Q * (-asq * Q + term1);
+                const double term2 = term1a + term1b;
+                // const double term2 = bsq * (1 - 2 * Qsq) + 2 * static_cast<double>(resonance) * (-asq * static_cast<double>(resonance) + term1);
+                const double term3 = std::sqrt(1 / term2);
+                const double result = bsq * resonance * term3;
+                jassert(!isnan (result));
+                return static_cast<float>(result);
             }
 
         } else
@@ -172,6 +180,80 @@ public:
             jassertfalse;
             return 1;
         }
+    }
+
+    [[nodiscard]] SampleType getPhaseResponse (SampleType frequency) const noexcept
+    {
+        const auto omega = 2.0f * juce::MathConstants<double>::pi * frequency / sampleRate;
+        const auto z = std::exp(juce::dsp::Complex<float>(0.0f, omega)); // z = e^{j omega}
+
+        const auto g2 = g0 * g0;
+        const auto gk = g0 * k0;
+
+        // Compute numerators for each filter type
+        const auto lpNumerator = g2 * (1.0f + z) * (1.0f + z);
+        const auto bpNumerator = g0 * (z * z - 1.0f);
+        const auto hpNumerator = (z - 1.0f) * (z - 1.0f);
+
+        // Combine numerators with mixing coefficients
+        const auto numerator =
+            lowpassMult * lpNumerator +
+            bandpassMult * bpNumerator +
+            highpassMult * hpNumerator;
+
+        // const auto numerator =
+        //     1.0f * lpNumerator +
+        //     0.0f * bpNumerator +
+        //     0.0f * hpNumerator;
+
+        // Compute the common denominator
+        const auto denominator = (z - 1.0f) * (z - 1.0f) + g2 * (z + 1.0f) * (z + 1.0f) + gk * (z * z - 1.0f);
+
+        // Compute the transfer function H(z)
+        const auto H_z = numerator / denominator;
+
+        // Compute the phase response (in radians)
+        const auto phaseResponse = std::arg(H_z);
+
+        return phaseResponse;
+    }
+
+    [[nodiscard]] SampleType getPhaseDelayInSamples(SampleType frequency) const noexcept
+    {
+        // Ensure frequency is not zero to avoid division by zero
+        if (frequency <= 0)
+            return 0;
+
+        // Get the phase response in radians
+        SampleType phaseResponse = getPhaseResponse(frequency);
+
+        // Calculate angular frequency
+        SampleType omega = 2.0f * juce::MathConstants<float>::pi * frequency / sampleRate;
+
+        // Calculate phase delay in samples
+        // Note: We negate the phase response because a positive phase means a delay
+        return -phaseResponse / omega;
+    }
+
+    [[nodiscard]] SampleType getGroupDelayInSamples(SampleType frequency) const noexcept
+    {
+        const SampleType delta = 0.5f; // Small frequency delta in Hz
+        const SampleType omega = 2.0f * juce::MathConstants<float>::pi * frequency / sampleRate;
+        const SampleType omegaPlusDelta = 2.0f * juce::MathConstants<float>::pi * (frequency + delta) / sampleRate;
+
+        const SampleType phase1 = getPhaseResponse(frequency);
+        const SampleType phase2 = getPhaseResponse(frequency + delta);
+
+        // Unwrap phase difference
+        SampleType phaseDiff = phase2 - phase1;
+        if (phaseDiff > juce::MathConstants<float>::pi)
+            phaseDiff -= 2.0f * juce::MathConstants<float>::pi;
+        else if (phaseDiff < -juce::MathConstants<float>::pi)
+            phaseDiff += 2.0f * juce::MathConstants<float>::pi;
+
+        // Calculate group delay in samples
+        // Note the negative sign and the scaling to convert to samples
+        return -phaseDiff / (omegaPlusDelta - omega);
     }
 
     /** Initialises the filter. */
