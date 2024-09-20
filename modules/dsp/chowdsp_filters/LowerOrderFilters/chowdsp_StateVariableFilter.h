@@ -44,6 +44,9 @@ public:
     template <bool shouldUpdate = true>
     void setCutoffFrequency (SampleType newFrequencyHz);
 
+    template <bool shouldUpdate = true>
+    void setPeakFrequency (SampleType newFrequencyHz);
+
     /**
      * Sets the resonance of the filter.
      *
@@ -80,7 +83,7 @@ public:
     std::enable_if_t<M == StateVariableFilterType::MultiMode, void> setMode (NumericType mode);
 
     template <StateVariableFilterType M = type>
-    std::enable_if_t<M == StateVariableFilterType::MultiMode, bool> updateParameters (SampleType newFrequency, SampleType newResonance, NumericType newMode);
+    std::enable_if_t<M == StateVariableFilterType::MultiMode, bool> updateParameters (SampleType newFrequency, SampleType newResonance, NumericType newMode, bool peak = false);
 
     /**
      * Updates the filter coefficients.
@@ -184,6 +187,8 @@ public:
 
     [[nodiscard]] SampleType getPhaseResponse (SampleType frequency) const noexcept
     {
+        jassert(lowpassMult == 1 || highpassMult == 1 || bandpassMult == 1);
+
         const auto omega = 2.0f * juce::MathConstants<double>::pi * frequency / sampleRate;
         const auto z = std::exp(juce::dsp::Complex<float>(0.0f, omega)); // z = e^{j omega}
 
@@ -214,6 +219,8 @@ public:
 
         // Compute the phase response (in radians)
         const auto phaseResponse = std::arg(H_z);
+
+        jassert(!isnan (phaseResponse));
 
         return phaseResponse;
     }

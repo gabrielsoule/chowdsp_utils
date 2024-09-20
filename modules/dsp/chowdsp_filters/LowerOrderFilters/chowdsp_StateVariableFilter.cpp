@@ -33,6 +33,27 @@ void StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::setCutof
 
 template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount, bool unityGain>
 template <bool shouldUpdate>
+void StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::setPeakFrequency (SampleType newFrequencyHz)
+{
+    jassert (SIMDUtils::all (newFrequencyHz >= static_cast<NumericType> (0)));
+    jassert (SIMDUtils::all (newFrequencyHz < static_cast<NumericType> (sampleRate * 0.5)));
+
+    cutoffFrequency = newFrequencyHz; // warning -- this is not the actual cutoff frequency! It's the peak frequency.
+    const auto w = juce::MathConstants<NumericType>::pi * newFrequencyHz / (NumericType) sampleRate;
+
+    CHOWDSP_USING_XSIMD_STD (tan);
+    CHOWDSP_USING_XSIMD_STD (sqrt);
+    const auto numerator = resonance * tan(w);
+    const auto denominator = sqrt(resonance * resonance - 0.5);
+    g0 = numerator / denominator;
+    jassert (!isnan(g0));
+
+    if constexpr (shouldUpdate)
+        update();
+}
+
+template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount, bool unityGain>
+template <bool shouldUpdate>
 void StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::setQValue (SampleType newResonance)
 {
     jassert (SIMDUtils::all (newResonance > static_cast<NumericType> (0)));
@@ -98,24 +119,44 @@ std::enable_if_t<M == StateVariableFilterType::MultiMode, void>
 template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount, bool unityGain>
 template <StateVariableFilterType M>
 std::enable_if_t<M == StateVariableFilterType::MultiMode, bool>
-    StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::updateParameters (SampleType newFrequency, SampleType newResonance, NumericType newMode)
+    StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::updateParameters (SampleType newFrequency, SampleType newResonance, NumericType newMode, bool peak)
 {
     bool flag = false;
-    if (newFrequency != cutoffFrequency)
-    {
-        setCutoffFrequency<false> (newFrequency);
-        flag = true;
-    }
-    if (newResonance != resonance)
-    {
-        setQValue<false> (newResonance);
-        flag = true;
-    }
-    if (newMode != mode)
+    if(newMode != mode)
     {
         setMode (newMode);
         flag = true;
     }
+    if(peak)
+    {
+        bool resonanceChanged = false;
+        if (newResonance != resonance)
+        {
+            setQValue<false> (newResonance);
+            resonanceChanged = true;
+            flag = true;
+        }
+        if (newFrequency != cutoffFrequency || resonanceChanged)
+        {
+            setPeakFrequency<false> (newFrequency);
+            flag = true;
+        }
+    }
+    else
+    {
+        if (newResonance != resonance)
+        {
+            setQValue<false> (newResonance);
+            flag = true;
+        }
+
+        if (newFrequency != cutoffFrequency)
+        {
+            setCutoffFrequency<false> (newFrequency);
+            flag = true;
+        }
+    }
+
     if(flag)
     {
         update();
