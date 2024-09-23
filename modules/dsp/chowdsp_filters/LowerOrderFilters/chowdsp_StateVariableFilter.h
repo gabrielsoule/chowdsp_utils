@@ -158,7 +158,7 @@ public:
                 jassert(a + b == static_cast<NumericType>(static_cast<SampleType>(1)));
 
                 double Q = static_cast<double>(resonance);
-                double Qsq = static_cast<double>(resonance * resonance);
+                double Qsq = Q * Q;
                 double asq = a * a;
                 double bsq = b * b;
 
