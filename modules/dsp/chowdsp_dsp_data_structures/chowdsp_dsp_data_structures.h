@@ -5,7 +5,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
    ID:            chowdsp_dsp_data_structures
    vendor:        Chowdhury DSP
-   version:       2.2.0
+   version:       2.3.0
    name:          ChowDSP DSP Data Structures
    description:   DSP data structures for ChowDSP plugins
    dependencies:  chowdsp_simd, chowdsp_buffers, chowdsp_math
@@ -46,6 +46,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 #include "Other/chowdsp_SmoothedBufferValue.h"
 
 #include "Processors/chowdsp_RebufferedProcessor.h"
+#include "Processors/chowdsp_BufferMultiple.h"
 #include "LookupTables/chowdsp_LookupTableTransform.h"
 #include "LookupTables/chowdsp_LookupTableCache.h"
 

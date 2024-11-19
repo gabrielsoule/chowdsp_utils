@@ -5,7 +5,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
    ID:            chowdsp_core
    vendor:        Chowdhury DSP
-   version:       2.2.0
+   version:       2.3.0
    name:          ChowDSP Core
    description:   Core code for other ChowDSP modules
    dependencies:
@@ -43,6 +43,10 @@ BEGIN_JUCE_MODULE_DECLARATION
 
 #ifndef CHOWDSP_ALLOW_TEMPLATE_INSTANTIATIONS
 #define CHOWDSP_ALLOW_TEMPLATE_INSTANTIATIONS 1
+#endif
+
+#ifndef CHOWDSP_JASSERT_IS_CASSERT
+#define CHOWDSP_JASSERT_IS_CASSERT 0
 #endif
 
 #if ! CHOWDSP_USING_JUCE
