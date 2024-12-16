@@ -80,7 +80,7 @@ public:
      * where 0 corresponds to a LPF, 0.5 corresponds to a BPF, and 1 corresponds to a HPF.
      */
     template <StateVariableFilterType M = type>
-    std::enable_if_t<M == StateVariableFilterType::MultiMode, void> setMode (NumericType mode);
+    std::enable_if_t<M == StateVariableFilterType::MultiMode, void> setMode (NumericType newMode);
 
     template <StateVariableFilterType M = type>
     std::enable_if_t<M == StateVariableFilterType::MultiMode, bool> updateParameters (SampleType newFrequency, SampleType newResonance, NumericType newMode, bool peak = false);
@@ -115,7 +115,7 @@ public:
             {
                 CHOWDSP_USING_XSIMD_STD (sqrt);
                 auto k2 = k0 * k0;
-                return 2.0 / (k2 * sqrt(4.0 / k2 - 1.0));
+                return 2.0f / (k2 * sqrt(4.0f / k2 - 1.0f));
             }
             else
             {
@@ -128,14 +128,14 @@ public:
         }
         else if constexpr(type == FilterType::MultiMode)
         {
-            if(lowpassMult >= 0.98 || highpassMult >=0.98)
+            if(lowpassMult >= 0.98f || highpassMult >=0.98f)
             {
                 //same as pure LPF/HPF
                 if(resonance > InverseRootTwo)
                 {
                     CHOWDSP_USING_XSIMD_STD (sqrt);
                     auto k2 = k0 * k0;
-                    return 2.0 / (k2 * sqrt(4.0 / k2 - 1.0));
+                    return 2.0f / (k2 * sqrt(4.0f / k2 - 1.0f));
                 }
                 else
                 {

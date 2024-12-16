@@ -94,12 +94,12 @@ void StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::setGainD
 template <typename SampleType, StateVariableFilterType type, size_t maxChannelCount, bool unityGain>
 template <StateVariableFilterType M>
 std::enable_if_t<M == StateVariableFilterType::MultiMode, void>
-    StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::setMode (NumericType mode)
+    StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::setMode (NumericType newMode)
 {
-    this->mode = mode;
-    lowpassMult = (NumericType) 1 - (NumericType) 2 * juce::jmin ((NumericType) 0.5, mode);
-    bandpassMult = (NumericType) 1 - std::abs ((NumericType) 2 * (mode - (NumericType) 0.5));
-    highpassMult = (NumericType) 2 * juce::jmax ((NumericType) 0.5, mode) - (NumericType) 1;
+    this->mode = newMode;
+    lowpassMult = (NumericType) 1 - (NumericType) 2 * juce::jmin ((NumericType) 0.5, newMode);
+    bandpassMult = (NumericType) 1 - std::abs ((NumericType) 2 * (newMode - (NumericType) 0.5));
+    highpassMult = (NumericType) 2 * juce::jmax ((NumericType) 0.5, newMode) - (NumericType) 1;
 
     //TODO restore original functionality
 
@@ -231,14 +231,14 @@ void StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::update()
     }
 
     const auto gk = g + k;
-    a1 = (NumericType) 1.0 / ((NumericType) 1.0 + g * gk);
+    a1 = (NumericType) 1.0f / ((NumericType) 1.0f + g * gk);
     a2 = g * a1;
     a3 = g * a2;
     ak = gk * a1;
 
     if constexpr(unityGain)
     {
-        oneOverPeakGain = 1.0 / getPeakGain();
+        oneOverPeakGain = 1.0f / getPeakGain();
     }
 }
 } // namespace chowdsp
