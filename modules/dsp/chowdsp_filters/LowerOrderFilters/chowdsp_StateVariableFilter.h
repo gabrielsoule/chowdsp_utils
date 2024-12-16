@@ -163,8 +163,6 @@ public:
                 double bsq = b * b;
 
                 CHOWDSP_USING_XSIMD_STD (sqrt);
-                const double epsilon = std::numeric_limits<double>::epsilon();
-
                 const double term1 = std::sqrt(-asq * bsq + (asq + bsq) * (asq + bsq) * Qsq);
                 // const double term2 = std::max(epsilon, bsq * (1 - 2 * Qsq) + 2 * static_cast<double>(resonance) * (-asq * static_cast<double>(resonance) + term1));
                 const double term1a = bsq * (1 - 2 * Qsq);
