@@ -18,6 +18,11 @@ template <typename SampleType, StateVariableFilterType type, size_t maxChannelCo
 template <bool shouldUpdate>
 void StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::setCutoffFrequency (SampleType newCutoffFrequencyHz)
 {
+    if (newCutoffFrequencyHz >= sampleRate * 0.5)
+    {
+        newCutoffFrequencyHz = sampleRate * 0.5 - 1;
+        DBG("WARNING: An attempt was made to set a filter cutoff to above Nyquist. Setting to " + juce::String(newCutoffFrequencyHz) + "Hz instead.");
+    }
     jassert (SIMDUtils::all (newCutoffFrequencyHz >= static_cast<NumericType> (0)));
     jassert (SIMDUtils::all (newCutoffFrequencyHz < static_cast<NumericType> (sampleRate * 0.5)));
 
@@ -184,7 +189,7 @@ void StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::prepare 
     }
 
     reset();
-
+    DBG("Init cutoff frequency: " + juce::String(cutoffFrequency));
     setCutoffFrequency (cutoffFrequency);
 }
 
