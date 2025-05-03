@@ -20,8 +20,8 @@ void StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::setCutof
 {
     if (newCutoffFrequencyHz >= sampleRate * 0.5)
     {
+        DBG("WARNING: An attempt was made to set a filter cutoff frequency (" + juce::String(newCutoffFrequencyHz) + ") that is greater than the Nyquist frequency (" + juce::String(sampleRate * 0.5) + ").");
         newCutoffFrequencyHz = sampleRate * 0.5 - 1;
-        DBG("WARNING: An attempt was made to set a filter cutoff to above Nyquist. Setting to " + juce::String(newCutoffFrequencyHz) + "Hz instead.");
     }
     jassert (SIMDUtils::all (newCutoffFrequencyHz >= static_cast<NumericType> (0)));
     jassert (SIMDUtils::all (newCutoffFrequencyHz < static_cast<NumericType> (sampleRate * 0.5)));
