@@ -51,7 +51,7 @@ void StateVariableFilter<SampleType, type, maxChannelCount, unityGain>::setPeakF
     const auto numerator = resonance * tan(w);
     const auto denominator = sqrt(resonance * resonance - 0.5);
     g0 = numerator / denominator;
-    jassert (!isnan(g0));
+    jassert (!std::isnan(g0));
 
     if constexpr (shouldUpdate)
         update();
