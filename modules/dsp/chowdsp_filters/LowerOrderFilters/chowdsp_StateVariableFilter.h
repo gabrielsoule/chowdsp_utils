@@ -171,7 +171,7 @@ public:
                 // const double term2 = bsq * (1 - 2 * Qsq) + 2 * static_cast<double>(resonance) * (-asq * static_cast<double>(resonance) + term1);
                 const double term3 = std::sqrt(1 / term2);
                 const double result = bsq * resonance * term3;
-                jassert(!isnan (result));
+                jassert(!std::isnan (result));
                 return static_cast<float>(result);
             }
 
@@ -218,7 +218,7 @@ public:
         // Compute the phase response (in radians)
         const auto phaseResponse = std::arg(H_z);
 
-        jassert(!isnan (phaseResponse));
+        jassert(!std::isnan (phaseResponse));
 
         return phaseResponse;
     }
